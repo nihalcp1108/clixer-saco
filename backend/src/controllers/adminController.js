@@ -13,48 +13,80 @@ export const adminLogin = async (req, res) => {
       });
     }
 
-    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedEmail = String(email).trim().toLowerCase();
     const configAdminEmail = (process.env.ADMIN_EMAIL || 'clixer@admin.com').trim().toLowerCase();
 
-    // 1. Verify email matches configured admin email or DB admin
+    // 1. Resolve password hash from Environment or MongoDB
     let passwordHash = null;
-    let adminRecord = null;
 
     if (trimmedEmail === configAdminEmail) {
-      passwordHash = process.env.ADMIN_PASSWORD_HASH || process.env.ADMIN_PASSWORD;
-    } else {
-      adminRecord = await Admin.findOne({ email: trimmedEmail });
-      if (adminRecord) {
-        passwordHash = adminRecord.password;
+      const rawEnvHash = process.env.ADMIN_PASSWORD_HASH || process.env.ADMIN_PASSWORD;
+      if (typeof rawEnvHash === 'string' && rawEnvHash.trim().length > 0) {
+        passwordHash = rawEnvHash.trim().replace(/^["']|["']$/g, '');
       }
     }
 
+    // If not found in environment, check MongoDB Admin collection
     if (!passwordHash) {
+      try {
+        const adminRecord = await Admin.findOne({ email: trimmedEmail });
+        if (adminRecord && typeof adminRecord.password === 'string' && adminRecord.password.trim().length > 0) {
+          passwordHash = adminRecord.password.trim().replace(/^["']|["']$/g, '');
+        }
+      } catch (dbErr) {
+        console.error('[Admin Auth] Error checking Admin model in database:', dbErr.message);
+      }
+    }
+
+    // 2. Validate presence of credentials
+    if (!passwordHash) {
+      if (trimmedEmail === configAdminEmail) {
+        // Email matches configured admin, but credentials are missing on the server
+        console.error(
+          '[Admin Auth Error] Missing configuration: Neither ADMIN_PASSWORD_HASH nor ADMIN_PASSWORD is set in environment, and no admin record exists in MongoDB.'
+        );
+        return res.status(500).json({
+          success: false,
+          message: 'Server authentication configuration error. Admin credentials are not configured on the server. Please configure ADMIN_PASSWORD_HASH in environment variables.'
+        });
+      }
+
+      // Email does not match configured admin and does not exist in database
       return res.status(401).json({
         success: false,
-        message: 'Invalid admin email or unconfigured credentials.'
+        message: 'Invalid admin email or password.'
       });
     }
 
-    // 2. Validate password using bcrypt or plain match fallback
+    // 3. Validate password using bcrypt or plain match fallback
     let isPasswordValid = false;
-    if (
+    const isBcryptHash =
       typeof passwordHash === 'string' &&
-      (passwordHash.startsWith('$2a$') || passwordHash.startsWith('$2b$') || passwordHash.startsWith('$2y$'))
-    ) {
-      isPasswordValid = await bcrypt.compare(password, passwordHash);
+      (passwordHash.startsWith('$2a$') || passwordHash.startsWith('$2b$') || passwordHash.startsWith('$2y$'));
+
+    if (isBcryptHash) {
+      try {
+        isPasswordValid = await bcrypt.compare(String(password), passwordHash);
+      } catch (err) {
+        console.error('[Admin Auth] Error comparing password hash:', err.message);
+        isPasswordValid = false;
+      }
     } else {
-      isPasswordValid = password === passwordHash;
+      // Plain-text match fallback for local dev
+      if (process.env.NODE_ENV === 'production') {
+        console.warn('[Admin Auth Warning] Password credential is not stored as a bcrypt hash.');
+      }
+      isPasswordValid = String(password) === passwordHash;
     }
 
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid admin password.'
+        message: 'Invalid admin email or password.'
       });
     }
 
-    // 3. Generate JWT Token
+    // 4. Generate JWT Token
     const jwtSecret = process.env.JWT_SECRET || 'clixer_default_jwt_secret_fallback_key';
     const token = jwt.sign(
       {
@@ -75,7 +107,7 @@ export const adminLogin = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Admin login error:', error);
+    console.error('Admin login error:', error.message || error);
     return res.status(500).json({
       success: false,
       message: 'Unable to connect to the server. Please try again.'

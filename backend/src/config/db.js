@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Product from '../models/Product.js';
+import Admin from '../models/Admin.js';
 import { seedProducts } from '../data/seedProducts.js';
 
 export const connectDB = async () => {
@@ -19,6 +20,24 @@ export const connectDB = async () => {
       console.log(`Successfully seeded ${seedProducts.length} initial products.`);
     } else {
       console.log(`MongoDB connected with ${productCount} existing products in collection.`);
+    }
+
+    // Initialize default Admin in MongoDB if collection is empty and credentials are configured
+    try {
+      const adminCount = await Admin.countDocuments();
+      const rawEnvHash = process.env.ADMIN_PASSWORD_HASH || process.env.ADMIN_PASSWORD;
+      if (adminCount === 0 && rawEnvHash) {
+        const adminEmail = (process.env.ADMIN_EMAIL || 'clixer@admin.com').trim().toLowerCase();
+        const cleanHash = rawEnvHash.trim().replace(/^["']|["']$/g, '');
+        await Admin.create({
+          email: adminEmail,
+          password: cleanHash,
+          role: 'admin'
+        });
+        console.log(`Initialized default admin account for ${adminEmail} in MongoDB.`);
+      }
+    } catch (adminInitErr) {
+      console.error('Note: Admin initialization check in MongoDB skipped:', adminInitErr.message);
     }
   } catch (error) {
     console.error('MongoDB connection error:', error.message);

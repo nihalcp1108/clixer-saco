@@ -10,7 +10,8 @@
     "dev:server": "node backend/src/server.js",
     "server": "node backend/src/server.js",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:auth": "node --test backend/test/**/*.test.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

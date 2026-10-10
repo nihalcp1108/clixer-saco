@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/**/*.test.js",
+    "seed:admin": "node src/scripts/seedAdmin.js",
+    "hash:password": "node src/scripts/generateHash.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
