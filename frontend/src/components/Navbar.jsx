@@ -1,13 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Menu, ArrowRight, Shield } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Menu, Search, X, ArrowRight, Shield, Package } from 'lucide-react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { isAdminAuthenticated } from '../services/api';
+import { isAdminAuthenticated, getFullImageUrl } from '../services/api';
+import { useProducts } from '../context/ProductContext';
 
 export default function Navbar({ onOpenMobileMenu, activeSection, onSelectCategory }) {
   const [scrolled, setScrolled] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef(null);
+
   const navigate = useNavigate();
   const location = useLocation();
+  const { products } = useProducts();
 
+  // Scroll detection for desktop header visibility
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 80);
@@ -15,6 +22,32 @@ export default function Navbar({ onOpenMobileMenu, activeSection, onSelectCatego
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Auto-focus search input when search opens & clear query when closed
+  useEffect(() => {
+    if (searchOpen) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+    } else {
+      setSearchQuery('');
+    }
+  }, [searchOpen]);
+
+  // Close search on escape key or route change
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && searchOpen) {
+        setSearchOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [searchOpen]);
+
+  useEffect(() => {
+    setSearchOpen(false);
+  }, [location.pathname]);
 
   const navItems = [
     { label: 'Home', sectionId: 'hero', path: '/' },
@@ -52,9 +85,31 @@ export default function Navbar({ onOpenMobileMenu, activeSection, onSelectCatego
     }
   };
 
+  // Filter products matching live query
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase().trim();
+    return (products || []).filter((p) => {
+      const name = (p.name || '').toLowerCase();
+      const model = (p.model || p.code || '').toLowerCase();
+      const cat = (p.categoryLabel || p.category || '').toLowerCase();
+      return name.includes(q) || model.includes(q) || cat.includes(q);
+    });
+  }, [products, searchQuery]);
+
+  const handleProductSelect = (product) => {
+    const pid = product._id || product.id || product.customId;
+    setSearchOpen(false);
+    setSearchQuery('');
+    navigate(`/products/${pid}`);
+  };
+
   return (
-    <header className={`navbar ${scrolled ? 'visible scrolled' : ''}`}>
-      <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <header className={`navbar ${scrolled || location.pathname !== '/' ? 'visible scrolled' : ''}`}>
+      {/* =========================================================================
+          1. DESKTOP NAVBAR (Kept intact for screens > 992px)
+          ========================================================================= */}
+      <div className="container desktop-nav-content">
         {/* Brand Group */}
         <Link to="/" className="nav-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none' }}>
           <img 
@@ -100,7 +155,6 @@ export default function Navbar({ onOpenMobileMenu, activeSection, onSelectCatego
 
         {/* Right Action CTA */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {/* Dedicated Admin Portal Button */}
           <button
             type="button"
             onClick={handleAdminClick}
@@ -120,16 +174,142 @@ export default function Navbar({ onOpenMobileMenu, activeSection, onSelectCatego
             <span>ENQUIRE NOW</span>
             <ArrowRight size={14} />
           </a>
+        </div>
+      </div>
 
+      {/* =========================================================================
+          2. MOBILE NAVBAR (Exact 3-Element Grid: Hamburger | Centered Logo | Search)
+          ========================================================================= */}
+      <div className="mobile-nav-bar">
+        {/* LEFT: Hamburger Menu Toggle Button */}
+        <div className="mobile-nav-left">
           <button 
-            className="nav-toggle" 
+            type="button"
+            className="mobile-nav-btn mobile-hamburger-btn"
             onClick={onOpenMobileMenu}
-            aria-label="Toggle Navigation Menu"
+            aria-label="Open Navigation Menu"
+            title="Open Menu"
           >
-            <Menu size={24} color="var(--text-main)" />
+            <Menu size={26} strokeWidth={2.2} />
+          </button>
+        </div>
+
+        {/* CENTER: Clixer Brand Logo (Mathematically Centered via CSS Grid) */}
+        <div className="mobile-nav-center">
+          <Link to="/" className="mobile-nav-logo-link" aria-label="CLIXER® - SACO Trading Company">
+            <img 
+              src="/images/branding/clixer-logo-lg.png" 
+              alt="CLIXER®" 
+              className="mobile-nav-logo-img" 
+            />
+          </Link>
+        </div>
+
+        {/* RIGHT: Compact Search Control Button */}
+        <div className="mobile-nav-right">
+          <button
+            type="button"
+            className={`mobile-nav-btn mobile-search-btn ${searchOpen ? 'active' : ''}`}
+            onClick={() => setSearchOpen(prev => !prev)}
+            aria-label={searchOpen ? 'Close Search' : 'Open Product Search'}
+            title={searchOpen ? 'Close Search' : 'Search Products'}
+          >
+            {searchOpen ? <X size={24} strokeWidth={2.2} /> : <Search size={24} strokeWidth={2.2} />}
           </button>
         </div>
       </div>
+
+      {/* =========================================================================
+          3. EXPANDABLE MOBILE SEARCH PANEL (Directly Beneath Mobile Navbar)
+          ========================================================================= */}
+      {searchOpen && (
+        <>
+          <div className="mobile-search-backdrop" onClick={() => setSearchOpen(false)} />
+          <div className="mobile-search-panel" role="region" aria-label="Mobile Product Search">
+            <div className="mobile-search-input-box">
+              <Search size={18} className="mobile-search-input-icon" />
+              <input
+                ref={searchInputRef}
+                type="search"
+                placeholder="Search products by model, code or name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="mobile-search-field"
+                aria-label="Search catalogue"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="mobile-search-clear-btn"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search input"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Live Search Results */}
+            {searchQuery.trim().length > 0 && (
+              <div className="mobile-search-results">
+                {searchResults.length > 0 ? (
+                  <>
+                    <div className="mobile-search-results-header">
+                      <span>Products Found ({searchResults.length})</span>
+                    </div>
+                    <div className="mobile-search-results-list">
+                      {searchResults.slice(0, 8).map((product) => {
+                        const pid = product._id || product.id || product.customId;
+                        return (
+                          <div
+                            key={pid}
+                            className="mobile-search-result-item"
+                            onClick={() => handleProductSelect(product)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => e.key === 'Enter' && handleProductSelect(product)}
+                          >
+                            <img
+                              src={getFullImageUrl(product.image)}
+                              alt={product.name}
+                              className="mobile-search-thumb"
+                              onError={(e) => {
+                                e.currentTarget.src = '/images/branding/clixer-logo.png';
+                              }}
+                            />
+                            <div className="mobile-search-result-info">
+                              <span className="mobile-search-result-name">{product.name}</span>
+                              <div className="mobile-search-result-meta">
+                                <span className="mobile-search-result-code">{product.model || product.code}</span>
+                                <span className="mobile-search-result-cat">{product.categoryLabel || product.category}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div className="mobile-search-empty">
+                    <Package size={30} className="mobile-search-empty-icon" />
+                    <p>No products found matching "<strong>{searchQuery}</strong>"</p>
+                    <button
+                      type="button"
+                      className="btn btn-secondary mobile-search-view-all"
+                      onClick={() => {
+                        setSearchOpen(false);
+                        navigate('/products');
+                      }}
+                    >
+                      Browse Full Catalogue
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </header>
   );
 }
