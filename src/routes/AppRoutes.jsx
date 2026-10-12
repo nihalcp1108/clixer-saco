@@ -30,6 +30,14 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/admin/settings"
+        element={
+          <AdminProtectedRoute>
+            <AdminDashboard defaultTab="settings" />
+          </AdminProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/products/new"
         element={
           <AdminProtectedRoute>

@@ -109,6 +109,59 @@ export const verifyAdminToken = async () => {
   }
 };
 
+export const getAdminProfile = async () => {
+  const token = getAuthToken();
+  if (!token) throw new Error('Unauthorized. No authentication token found.');
+
+  const response = await fetch(`${API_BASE}/admin/profile`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  return await handleResponse(response);
+};
+
+export const changeAdminEmail = async ({ currentPassword, newEmail, confirmEmail }) => {
+  const token = getAuthToken();
+  if (!token) throw new Error('Unauthorized. Please log in.');
+
+  const response = await fetch(`${API_BASE}/admin/change-email`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ currentPassword, newEmail, confirmEmail })
+  });
+
+  const data = await handleResponse(response);
+  if (data?.token) {
+    setAuthToken(data.token);
+  }
+  return data;
+};
+
+export const changeAdminPassword = async ({ currentPassword, newPassword, confirmPassword }) => {
+  const token = getAuthToken();
+  if (!token) throw new Error('Unauthorized. Please log in.');
+
+  const response = await fetch(`${API_BASE}/admin/change-password`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+  });
+
+  const data = await handleResponse(response);
+  if (data?.token) {
+    setAuthToken(data.token);
+  }
+  return data;
+};
+
 export const adminLogout = () => {
   clearAuthToken();
 };
