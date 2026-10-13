@@ -131,7 +131,7 @@ export default function ProductDetails() {
         onSelectCategory={() => navigate('/products')}
       />
 
-      <main style={{ paddingTop: '80px', minHeight: '80vh' }}>
+      <main className="page-main-content">
         {/* BREADCRUMB / TOP ACTION BAR */}
         <div style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', padding: '1rem 0' }}>
           <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>

@@ -5,20 +5,54 @@ import { isAdminAuthenticated, getFullImageUrl } from '../services/api';
 import { useProducts } from '../context/ProductContext';
 
 export default function Navbar({ onOpenMobileMenu, activeSection, onSelectCategory }) {
-  const [scrolled, setScrolled] = useState(false);
+  const [desktopScrolled, setDesktopScrolled] = useState(false);
+  const [mobileScrolled, setMobileScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
+  const mobileScrolledRef = useRef(false);
+  const desktopScrolledRef = useRef(false);
 
   const navigate = useNavigate();
   const location = useLocation();
   const { products } = useProducts();
 
-  // Scroll detection for desktop header visibility
+  // Scroll detection:
+  // Desktop: visible after scrolling past 80px (on home) or immediately on other pages
+  // Mobile: strictly hidden when scrollY <= 10; smoothly appears when scrollY > 10 (or when search is open)
   useEffect(() => {
+    let ticking = false;
+
     const handleScroll = () => {
-      setScrolled(window.scrollY > 80);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentY = window.scrollY || 0;
+          const isMobile = currentY > 10;
+          const isDesktop = currentY > 80;
+
+          if (isMobile !== mobileScrolledRef.current) {
+            mobileScrolledRef.current = isMobile;
+            setMobileScrolled(isMobile);
+          }
+
+          if (isDesktop !== desktopScrolledRef.current) {
+            desktopScrolledRef.current = isDesktop;
+            setDesktopScrolled(isDesktop);
+          }
+
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
+
+    // Check initial position on mount for desktop only
+    const initialY = window.scrollY || 0;
+    if (initialY > 80) {
+      desktopScrolledRef.current = true;
+      setDesktopScrolled(true);
+    }
+
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -34,7 +68,7 @@ export default function Navbar({ onOpenMobileMenu, activeSection, onSelectCatego
     }
   }, [searchOpen]);
 
-  // Close search on escape key or route change
+  // Close search on escape key
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && searchOpen) {
@@ -45,8 +79,12 @@ export default function Navbar({ onOpenMobileMenu, activeSection, onSelectCatego
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [searchOpen]);
 
+  // Reset search and scroll to top on route change to ensure mobile navbar starts hidden
   useEffect(() => {
     setSearchOpen(false);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    mobileScrolledRef.current = false;
+    setMobileScrolled(false);
   }, [location.pathname]);
 
   const navItems = [
@@ -104,8 +142,11 @@ export default function Navbar({ onOpenMobileMenu, activeSection, onSelectCatego
     navigate(`/products/${pid}`);
   };
 
+  const isDesktopVisible = desktopScrolled || location.pathname !== '/';
+  const isMobileVisible = mobileScrolled || searchOpen;
+
   return (
-    <header className={`navbar ${scrolled || location.pathname !== '/' ? 'visible scrolled' : ''}`}>
+    <header className={`navbar ${isDesktopVisible ? 'visible scrolled' : ''} ${isMobileVisible ? 'mobile-visible' : ''}`}>
       {/* =========================================================================
           1. DESKTOP NAVBAR (Kept intact for screens > 992px)
           ========================================================================= */}

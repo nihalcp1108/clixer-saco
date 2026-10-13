@@ -4,6 +4,7 @@ import { X, ShieldCheck } from 'lucide-react';
 import SEO from './SEO/SEO';
 import { SEO_CONFIG } from '../config/seo';
 import { getFullImageUrl } from '../services/api';
+import { lockScroll, unlockScroll } from '../utils/scrollLock';
 
 export default function ProductModal({ product, onClose }) {
   const [activeImage, setActiveImage] = useState(product?.image);
@@ -23,12 +24,12 @@ export default function ProductModal({ product, onClose }) {
       }
     };
 
-    // Lock body scroll while modal is active
-    document.body.style.overflow = 'hidden';
+    // Lock background scrolling while modal is open
+    lockScroll();
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.overflow = 'unset';
+      unlockScroll();
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose]);

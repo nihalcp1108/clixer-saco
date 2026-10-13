@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   KeyRound,
-  UserCheck,
   Save,
   AlertCircle
 } from 'lucide-react';
@@ -188,7 +187,7 @@ export default function AdminSettings() {
 
   return (
     <div className="admin-settings-container">
-      {/* Settings Overview Banner */}
+      {/* Settings Overview Header */}
       <div className="admin-settings-card-header">
         <div className="admin-settings-title-group">
           <div className="admin-settings-badge-icon">
@@ -200,18 +199,6 @@ export default function AdminSettings() {
               Manage master administrator credentials, login email, and security policies.
             </p>
           </div>
-        </div>
-
-        {/* Current Admin Identity Pill */}
-        <div className="admin-current-identity-pill">
-          <UserCheck size={16} className="admin-identity-pill-icon" />
-          <div className="admin-identity-pill-content">
-            <span className="admin-identity-pill-label">Authenticated Admin</span>
-            <span className="admin-identity-pill-email">
-              {admin?.email || 'clixer@admin.com'}
-            </span>
-          </div>
-          <span className="admin-identity-pill-tag">God Mode</span>
         </div>
       </div>
 

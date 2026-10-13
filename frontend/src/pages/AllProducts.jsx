@@ -127,7 +127,7 @@ export default function AllProducts() {
         onSelectCategory={handleCategoryChange}
       />
 
-      <main style={{ paddingTop: '80px' }}>
+      <main className="page-main-content">
         {/* PAGE HEADER BANNER */}
         <section className="page-header-banner" style={{
           background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',

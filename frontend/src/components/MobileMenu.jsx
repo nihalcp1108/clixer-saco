@@ -18,6 +18,7 @@ import {
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { COMPANY_INFO, CATEGORIES } from '../data/products';
 import { isAdminAuthenticated } from '../services/api';
+import { lockScroll, unlockScroll } from '../utils/scrollLock';
 
 export default function MobileMenu({ isOpen, onClose, onSelectCategory }) {
   const navigate = useNavigate();
@@ -27,13 +28,11 @@ export default function MobileMenu({ isOpen, onClose, onSelectCategory }) {
   // Prevent background scrolling while drawer is open
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      lockScroll();
+      return () => {
+        unlockScroll();
+      };
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [isOpen]);
 
   // Support keyboard Escape to close drawer
@@ -249,7 +248,7 @@ export default function MobileMenu({ isOpen, onClose, onSelectCategory }) {
                   {isAuth ? 'Admin Dashboard' : 'Admin Login'}
                 </span>
                 <span className="mobile-admin-card-subtitle">
-                  {isAuth ? 'God Mode Active' : 'Master Credential Access'}
+                  {isAuth ? 'Administrator Active' : 'Master Credential Access'}
                 </span>
               </div>
               <ArrowRight size={16} className="mobile-admin-card-arrow" />
